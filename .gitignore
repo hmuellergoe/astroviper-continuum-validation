@@ -1,0 +1,16 @@
+# Large or generated harness content
+data/
+results/
+
+# Local environments and test caches
+.venv/
+.coverage*
+.pytest_cache/
+.ruff_cache/
+**/__pycache__/
+*.py[cod]
+
+# Runtime artifacts
+.DS_Store
+*.log
+TempLattice*
