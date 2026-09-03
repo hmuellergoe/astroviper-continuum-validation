@@ -155,6 +155,16 @@ equations, weighting, deconvolution state, restoration, output filtering and
 Zarr persistence, plus real-data TW Hydra execution paths. The persisted-output
 checks guard against the former NaN-placeholder defect.
 
+## Demonstrator evaluator tests
+
+The repository also carries the portable continuum-demonstrator evaluation
+programs at the top level of `evaluation/`. Their lightweight QA2 and result
+discovery tests run without the excluded Measurement Sets or image stores:
+
+```bash
+$VALIDATION_PYTHON -m pytest -q evaluation/test_evaluate_science_metrics.py
+```
+
 ## Current intentional limitations
 
 - The default medium CASA matrix isolates the major cycle; its shared-threshold

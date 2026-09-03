@@ -16,6 +16,10 @@ The harness uses a category-first layout. Each category is subdivided into
   caches, and retained CASA products;
 - `evaluation/` contains comparison code, metrics, reports, and plots.
 
+The top level of `evaluation/` also contains the continuum-demonstrator science,
+image-rendering, and CASA-equivalence programs. See
+[`evaluation/README.md`](evaluation/README.md) for their inputs and commands.
+
 The test-size tiers retain their original meaning: light tests use synthetic
 arrays, medium tests use compact CASA and TW Hydra regression datasets, and big
 tests perform archived ALMA reconstructions.
