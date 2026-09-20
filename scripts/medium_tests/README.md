@@ -13,6 +13,11 @@ Briggs-global imaging. The cube case compares a regenerated dirty image with a
 frozen AstroVIPER baseline. Every comparison reopens its Zarr output and uses a
 `1e-6` peak relative tolerance.
 
+The same TW Hydra runner also performs nonzero-model, multiple-cycle MFS and MVC
+comparisons of all visibility-grid policies: re-grid observed visibilities with
+`recompute`, retain the reduced/task-local UV grids with `in_memory`, or persist
+those grids temporarily in the image store with `in_place`.
+
 ## Selected CASA tests and data
 
 The primary source is CASA's

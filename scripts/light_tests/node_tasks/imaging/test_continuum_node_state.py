@@ -75,6 +75,7 @@ def test_single_leaf_state_is_normalized_to_cache_mappings(monkeypatch):
     """A one-leaf reduce result is normalized to task-keyed cache mappings."""
     pb_xds = xr.Dataset({"PRIMARY_BEAM": xr.DataArray([1.0], dims=("frequency",))})
     weight_datasets = {"ms_0": xr.Dataset({"WEIGHT_IMAGING": xr.DataArray([1.0])})}
+    observed_grid_mapping = {7: xr.Dataset({"VISIBILITY": xr.DataArray([2.0 + 0.0j])})}
     captured = {}
 
     def fake_prepare(image, input_params, **kwargs):
@@ -99,6 +100,7 @@ def test_single_leaf_state_is_normalized_to_cache_mappings(monkeypatch):
             "task_id": 7,
             "pb_xds": pb_xds,
             "weight_datasets": weight_datasets,
+            "observed_visibility_grid_mapping": observed_grid_mapping,
         },
         {"is_n_iter_0": True},
     )
@@ -106,5 +108,6 @@ def test_single_leaf_state_is_normalized_to_cache_mappings(monkeypatch):
     assert captured["pb_cache_mapping"] == {7: pb_xds}
     assert result["pb_cache_mapping"] == {7: pb_xds}
     assert result["weight_cache_mapping"] == {7: weight_datasets}
+    assert result["observed_visibility_grid_mapping"] is observed_grid_mapping
     assert isinstance(result["model_xds"], xr.Dataset)
     assert result["model_uv_xds"] is None

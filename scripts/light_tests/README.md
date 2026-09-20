@@ -8,5 +8,6 @@ run them with:
 pytest /path/to/astroviper-continuum-validation/scripts/light_tests
 ```
 
-They cover continuum frequency reduction, cached node state, reference-frequency
-primary beams, MVC normal equations, and continuum imaging-weight grid indexing.
+They cover continuum frequency reduction, task-local MVC visibility-cache state,
+reference-frequency primary beams, MVC normal equations, and continuum
+imaging-weight grid indexing.

@@ -15,11 +15,11 @@ import pytest
 import xarray as xr
 from xradio.measurement_set import open_processing_set
 
-from astroviper.distributed_applications.imaging.image_cube_single_field import (
-    image_cube_single_field,
-)
 from astroviper.distributed_applications.imaging.image_continuum_single_field import (
     image_continuum_single_field,
+)
+from astroviper.distributed_applications.imaging.image_cube_single_field import (
+    image_cube_single_field,
 )
 
 HARNESS_ROOT = Path(__file__).resolve().parents[3]
@@ -183,29 +183,40 @@ def test_tw_hydra_dirty_cube_is_backward_compatible(tmp_path):
 
     np.testing.assert_allclose(
         actual.BEAM_FIT_PARAMS_POINT_SPREAD_FUNCTION.values,
-        reference.BEAM_FIT_PARAMS_POINT_SPREAD_FUNCTION.values,
+        # Corrected interval scaling from b2cf314; the original frozen cube
+        # remains untouched. See BEAM_REFERENCE.md for independent validation.
+        np.load(Path(__file__).with_name("twhya_corrected_beam.npy")),
         rtol=RELATIVE_TOLERANCE,
         atol=0.0,
     )
 
 
 def _run_tw_hydra_continuum(
-    output_store, processing_set, n_chunks, specmode, imaging_weights_params
+    output_store,
+    processing_set,
+    n_chunks,
+    specmode,
+    imaging_weights_params,
+    *,
+    visibility_memory_mode="recompute",
+    iteration_control_params=None,
 ):
     """Run the public distributed MFS application with fixed partitioning."""
+    if iteration_control_params is None:
+        iteration_control_params = {
+            **DIRTY_ITERATION_CONTROL,
+            # The unreachable threshold keeps this a dirty-image comparison.
+            "niter": 1,
+            "cycleniter": 1,
+            "threshold": 1.0e30,
+        }
+
     image_continuum_single_field(
         ps_store=str(PS_STORE),
         image_store=str(output_store),
         image_params=_continuum_image_params(processing_set),
         imaging_weights_params=imaging_weights_params,
-        iteration_control_params={
-            **DIRTY_ITERATION_CONTROL,
-            # The current compatibility minor loop requires a positive budget;
-            # the unreachable threshold keeps this a dirty-image comparison.
-            "niter": 1,
-            "cycleniter": 1,
-            "threshold": 1.0e30,
-        },
+        iteration_control_params=iteration_control_params,
         gridder="prolate_spheroidal",
         deconvolver="hogbom",
         restore=False,
@@ -225,6 +236,7 @@ def _run_tw_hydra_continuum(
         n_chunks=n_chunks,
         overwrite=True,
         memory_mode="in_memory",
+        visibility_memory_mode=visibility_memory_mode,
         vizualize_graph=False,
         compute_backend="dask",
         reduce_mode="tree",
@@ -288,6 +300,56 @@ def test_tw_hydra_continuum_is_invariant_to_distributed_frequency_partitioning(
         )
 
 
+@pytest.mark.parametrize("specmode", ["mfs", "mvc"])
+def test_tw_hydra_visibility_memory_modes_are_equivalent(tmp_path, specmode):
+    """All three visibility policies preserve real multi-cycle continuum CLEAN."""
+    processing_set = open_processing_set(str(PS_STORE))
+    iteration_control_params = {
+        "niter": 20,
+        "nmajor": 2,
+        "threshold": 0.001,
+        "gain": 0.1,
+        "cyclefactor": 1.5,
+        "cycleniter": 5,
+        "minpsffraction": 0.05,
+        "maxpsffraction": 0.8,
+    }
+    imaging_weights_params = {
+        "weighting": "natural",
+        "weighting_scope": "local",
+    }
+    products = {}
+
+    for visibility_memory_mode in ("recompute", "in_memory", "in_place"):
+        products[visibility_memory_mode] = _run_tw_hydra_continuum(
+            tmp_path / f"twhya_{specmode}_visibility_{visibility_memory_mode}.img.zarr",
+            processing_set,
+            2,
+            specmode,
+            imaging_weights_params,
+            visibility_memory_mode=visibility_memory_mode,
+            iteration_control_params=iteration_control_params,
+        )
+
+    reference = products["recompute"]
+    assert np.nanmax(np.abs(reference["SKY_MODEL"].values)) > 0.0
+    for visibility_memory_mode in ("in_memory", "in_place"):
+        actual = products[visibility_memory_mode]
+        for variable in (
+            "SKY_MODEL",
+            "SKY_RESIDUAL",
+            "POINT_SPREAD_FUNCTION",
+            "PRIMARY_BEAM",
+        ):
+            np.testing.assert_allclose(
+                actual[variable],
+                reference[variable],
+                rtol=RELATIVE_TOLERANCE,
+                atol=1.0e-12,
+                equal_nan=True,
+            )
+
+
 if __name__ == "__main__":
     with TemporaryDirectory(prefix="tw-hydra-cube-") as temporary_directory:
         temporary_path = Path(temporary_directory)
@@ -316,5 +378,10 @@ if __name__ == "__main__":
         ):
             test_tw_hydra_continuum_is_invariant_to_distributed_frequency_partitioning(
                 temporary_path, specmode, weighting_name, weighting_params
+            )
+        for specmode in ("mfs", "mvc"):
+            test_tw_hydra_visibility_memory_modes_are_equivalent(
+                temporary_path,
+                specmode,
             )
     print("TW Hydra cube and continuum distributed tests: PASS")

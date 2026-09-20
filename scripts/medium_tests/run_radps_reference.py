@@ -219,8 +219,9 @@ def run_case(
         pblimit=config["pblimit"],
         specmode=mode,
         field_name=config["field_name"],
-        # CASA regression datasets carry no scan-intent metadata.
-        scan_intents=["None"],
+        # XRADIO represents the simulator metadata differently in these two
+        # regression datasets, so select the intent recorded for this case.
+        scan_intents=config["scan_intents"],
         image_data_variables_keep=[
             "sky_model",
             "sky_residual",

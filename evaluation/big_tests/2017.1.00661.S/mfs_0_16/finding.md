@@ -7,7 +7,7 @@ All recorded AstroViper products contain finite pixels.
 
 ## Run configuration
 
-- AstroViper elapsed time: `6.546 s`
+- AstroViper elapsed time: `9.660 s`
 - Requested iterations: `99999`
 - Major-cycle limit: `20`
 - Minor-cycle limit: `50`

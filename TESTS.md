@@ -32,6 +32,8 @@ The tests mirror AstroVIPER's application layers.
 - MVC channel images have exclusive frequency ownership, are sorted, and are
   concatenated without accidental summation;
 - duplicate MVC channel ownership is rejected;
+- task-local MVC observed-visibility grids survive tree reduction without being
+  combined across frequency tasks;
 - the MFS reference-frequency primary beam is retained once when identical,
   accepted when supplied by one leaf, and rejected when inconsistent.
 
@@ -42,7 +44,9 @@ The tests mirror AstroVIPER's application layers.
 - final static products replace an unused chunk-frequency coordinate with the
   single reference-frequency coordinate;
 - replacement is rejected while a channel cube still uses the old coordinate;
-- a single reduce leaf is normalized into task-keyed PB and weighting caches.
+- a single reduce leaf is normalized into task-keyed PB and weighting caches;
+- task-local MVC observed-grid mappings survive the append node for reuse by the
+  next distributed graph.
 
 ### Processing mathematics
 
@@ -73,13 +77,15 @@ Coverage includes:
   AstroVIPER Taylor-zero models and lower residual peaks.
 
 `scripts/medium_tests/cube_backward_compatibility/` uses the five-channel TW Hydra
-processing set for two distributed-application checks. The cube test reopens a
+processing set for several distributed-application checks. The cube test reopens a
 newly persisted dirty cube and compares its dimensions, coordinates, residual,
 PSF, primary beam, and fitted PSF beam parameters against a frozen AstroVIPER
 baseline. The continuum test runs the public application with one and five
 frequency partitions and requires equivalent persisted residual, PSF, and PB
 products for MFS natural-local, MVC natural-local, and MFS Briggs-global. All
-comparisons use a peak relative tolerance of `1e-6`.
+comparisons use a peak relative tolerance of `1e-6`. Real-cleaning MFS and MVC
+cases additionally compare `visibility_memory_mode="recompute"`, `"in_memory"`,
+and disk-backed `"in_place"` through multiple residual/model-update cycles.
 
 The partition-invariance cases intentionally disable cleaning so they isolate
 major-cycle behavior. Separate repository TW Hydra cases exercise real MFS and

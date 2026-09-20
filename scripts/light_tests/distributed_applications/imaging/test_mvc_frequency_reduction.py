@@ -64,11 +64,35 @@ def test_mvc_reducer_sums_map_local_taylor_contributions():
         ]
     )
 
-    np.testing.assert_allclose(
-        result["image"]["MVC_RESIDUAL_TAYLOR_NUMERATOR"], 3.0
-    )
+    np.testing.assert_allclose(result["image"]["MVC_RESIDUAL_TAYLOR_NUMERATOR"], 3.0)
     np.testing.assert_allclose(result["image"]["MVC_RESIDUAL_WEIGHT_SUM"], 3.0)
     assert "frequency" not in result["image"].dims
+
+
+def test_mvc_reducer_preserves_task_local_visibility_grid_caches():
+    """Tree reduction keeps every MVC task's observed UV grid separately."""
+    first = _mvc_map_result(1.0, 1)
+    second = _mvc_map_result(2.0, 2)
+    first["task_id"] = 1
+    second["task_id"] = 2
+    first["observed_visibility_grid_xds"] = xr.Dataset(
+        {"VISIBILITY": xr.DataArray([1.0 + 0.0j], dims=("frequency",))}
+    )
+    second["observed_visibility_grid_xds"] = xr.Dataset(
+        {"VISIBILITY": xr.DataArray([2.0 + 0.0j], dims=("frequency",))}
+    )
+
+    result = _reduce([first, second])
+
+    assert set(result["observed_visibility_grid_mapping"]) == {1, 2}
+    np.testing.assert_array_equal(
+        result["observed_visibility_grid_mapping"][1].VISIBILITY,
+        [1.0 + 0.0j],
+    )
+    np.testing.assert_array_equal(
+        result["observed_visibility_grid_mapping"][2].VISIBILITY,
+        [2.0 + 0.0j],
+    )
 
 
 def _mfs_map_result(primary_beam, task_id):
