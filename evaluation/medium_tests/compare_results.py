@@ -10,7 +10,7 @@ import numpy as np
 
 HARNESS_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(HARNESS_ROOT / "scripts" / "medium_tests"))
-from cases import WEIGHTING_CASES, weighting_suffix  # noqa: E402
+from cases import CASES, WEIGHTING_CASES, weighting_suffix  # noqa: E402
 
 PRODUCTS = ("residual_t0", "residual_t1", "psf_t0", "psf_t1", "psf_t2", "pb_t0")
 
@@ -87,6 +87,49 @@ def compare_pair(casa_path, radps_path, rtol, atol, enforce_tolerance=True):
         )
         if enforce_tolerance and not passed:
             failures.append(name)
+    return failures, chosen_orientation
+
+
+def validate_off_axis_geometry(casa_path, radps_path, orientation, config):
+    """Check source displacement and PB attenuation independently of array RMS."""
+    failures = []
+    expected_radius = config["source_offset_pixels"]
+    source_flux = config["source_flux_jy"]
+    for label, path in (("CASA", casa_path), ("RADPS", radps_path)):
+        products = np.load(path)
+        residual = plane(products["residual_t0"])
+        pb = plane(products["pb_t0"])
+        if label == "RADPS":
+            residual = orientations(residual)[orientation]
+            pb = orientations(pb)[orientation]
+
+        center = np.asarray(residual.shape, dtype=float) / 2.0
+        source_pixel = np.asarray(
+            np.unravel_index(np.nanargmax(residual), residual.shape), dtype=float
+        )
+        pb_peak_pixel = np.asarray(
+            np.unravel_index(np.nanargmax(pb), pb.shape), dtype=float
+        )
+        radius = float(np.linalg.norm(source_pixel - center))
+        source_pixel_index = tuple(source_pixel.astype(int))
+        apparent_flux = float(residual[source_pixel_index])
+        pb_at_source = float(pb[source_pixel_index])
+
+        passed = (
+            abs(radius - expected_radius) <= 1.0
+            and np.linalg.norm(pb_peak_pixel - center) <= 1.0
+            and 0.1 < pb_at_source < 0.95
+            and abs(apparent_flux - source_flux * pb_at_source) <= 0.03
+        )
+        print(
+            f"{label:12s} off-axis radius={radius:.3f}px "
+            f"apparent_flux={apparent_flux:.6g}Jy "
+            f"pb_at_source={pb_at_source:.6g} "
+            f"pb_peak={tuple(pb_peak_pixel.astype(int))} "
+            f"{'PASS' if passed else 'FAIL'}"
+        )
+        if not passed:
+            failures.append(f"{label.lower()}_off_axis_geometry")
     return failures
 
 
@@ -120,13 +163,21 @@ def main():
             for weighting in args.weightings:
                 suffix = weighting_suffix(weighting)
                 print(f"\n=== {case}/{mode}/{weighting}: CASA versus RADPS ===")
-                failures = compare_pair(
-                    args.results / f"casa_{case}_{mode}{suffix}.npz",
-                    args.results / f"radps_{case}_{mode}{suffix}.npz",
+                casa_path = args.results / f"casa_{case}_{mode}{suffix}.npz"
+                radps_path = args.results / f"radps_{case}_{mode}{suffix}.npz"
+                failures, orientation = compare_pair(
+                    casa_path,
+                    radps_path,
                     args.rtol,
                     args.atol,
                     enforce_tolerance=(weighting != "briggs_local"),
                 )
+                if case == "off_axis":
+                    failures.extend(
+                        validate_off_axis_geometry(
+                            casa_path, radps_path, orientation, CASES[case]
+                        )
+                    )
                 all_failures.extend(
                     f"{case}/{mode}/{weighting}/{name}" for name in failures
                 )

@@ -25,15 +25,22 @@ The primary source is CASA's
 
 - `test_mtmfsviacube_compare_with_mfs` uses `refim_point.ms` to compare MFS and
   MVC for a phase-center point source. This is the best basic equivalence test.
-- `test_mtmfsviacube_standard` uses field 0 of
-  `refim_oneshiftpoint.mosaic.ms` with the standard gridder. Despite the MS
-  filename, this is used here as a single selected field and provides an
-  off-axis PB-sensitive MVC case.
+- The harness derives `refim_offaxis_point.ms` from the same single-field
+  `refim_point.ms`: CASA predicts a flat-spectrum, one-Jy point source 600
+  arcsec north of the pointing center with its default primary beam enabled.
+  This supplies a PB-sensitive MVC case without mosaic support or a requested
+  visibility phase-center shift.
 
 Copied data under `data/medium_tests/`:
 
 - `refim_point.ms` (required basic case)
-- `refim_oneshiftpoint.mosaic.ms` (optional off-axis case)
+- `refim_offaxis_point.ms` (generated single-field off-axis fixture)
+
+Prepare the single-field fixture once with a CASA Python interpreter:
+
+```bash
+$CASA_PYTHON scripts/medium_tests/prepare_off_axis_point.py --overwrite
+```
 
 ## Why the minor loop is thresholded off
 
@@ -152,9 +159,15 @@ orientation for every product. This makes axis-convention differences visible
 without allowing a different transform to hide errors in individual products.
 
 The scripts explicitly select CASA field `0` and the corresponding xradio field
-name (`fake` or `fake0`). The off-axis test also applies the same explicit J2000
-phase center on both sides; it does not accidentally combine the two fields in
-the source MS.
+name. The off-axis runner additionally rejects the converted fixture unless it
+contains exactly one field. Pointing, field phase direction, and image center
+are identical; only the source is displaced, by 60 ten-arcsecond pixels.
+
+In addition to whole-array CASA comparisons, the evaluator requires the source
+peak at the configured radius, the PB peak at image center, a sub-unity PB at
+the source, and agreement between the PB-attenuated one-Jy source and its
+apparent residual peak. This isolates primary-beam behavior from unsupported
+mosaicing and from the separate visibility phase-rotation limitation.
 
 ## Validation performed here
 

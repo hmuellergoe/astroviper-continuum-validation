@@ -61,9 +61,10 @@ The tests mirror AstroVIPER's application layers.
 
 ## Medium CASA regression tests
 
-`data/medium_tests/` contains the small CASA regression datasets `refim_point.ms` and
-`refim_oneshiftpoint.mosaic.ms`. It compares neutral NPZ products rather than
-requiring CASA and AstroVIPER in one Python environment.
+`data/medium_tests/` contains the small CASA regression dataset `refim_point.ms`
+and a derived single-field fixture with a PB-attenuated one-Jy point source 600
+arcsec from the shared pointing/image center. It compares neutral NPZ products
+rather than requiring CASA and AstroVIPER in one Python environment.
 
 Coverage includes:
 
@@ -75,6 +76,9 @@ Coverage includes:
   in-memory application result before NPZ export.
 - a shared 0.1 Jy threshold-cleaning regression requiring nonzero CASA and
   AstroVIPER Taylor-zero models and lower residual peaks.
+- a strictly single-field off-axis MVC regression that checks the 60-pixel
+  source displacement, central PB peak, PB attenuation at the source, and the
+  apparent source response without invoking mosaicing or phase-center shifts.
 
 `scripts/medium_tests/cube_backward_compatibility/` uses the five-channel TW Hydra
 processing set for several distributed-application checks. The cube test reopens a

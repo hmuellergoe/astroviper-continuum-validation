@@ -60,28 +60,25 @@ def phase_direction_from_ps(ps_path: Path):
     return np.asarray(direction.values), np.asarray(ps_xdt.xr_ps.get_freq_axis().values)
 
 
-def parse_j2000_phasecenter(value: str) -> np.ndarray:
-    """Parse the sexagesimal J2000 form used by these CASA regression cases."""
-    frame, ra_text, dec_text = value.split()
-    if frame.upper() != "J2000":
-        raise ValueError(f"Only J2000 phase centers are supported, received {frame!r}")
+def require_one_processing_set_field(ps_path: Path) -> str:
+    """Return the sole field name, rejecting multi-field converted fixtures."""
+    from xradio.measurement_set import open_processing_set
 
-    ra_parts = [
-        float(part) for part in ra_text.translate(str.maketrans("hms", "   ")).split()
-    ]
-    dec_sign = -1.0 if dec_text.startswith("-") else 1.0
-    dec_parts = [
-        float(part)
-        for part in dec_text.lstrip("+-").translate(str.maketrans("dms", "   ")).split()
-    ]
-    ra_degrees = 15.0 * (ra_parts[0] + ra_parts[1] / 60.0 + ra_parts[2] / 3600.0)
-    dec_degrees = dec_sign * (
-        dec_parts[0] + dec_parts[1] / 60.0 + dec_parts[2] / 3600.0
-    )
-    ra_radians = np.deg2rad(ra_degrees)
-    if ra_radians > np.pi:
-        ra_radians -= 2.0 * np.pi
-    return np.asarray([ra_radians, np.deg2rad(dec_degrees)])
+    ps_xdt = open_processing_set(str(ps_path))
+    field_names = set()
+    for child_name, child_xdt in ps_xdt.items():
+        if "field_name" not in child_xdt.coords:
+            raise RuntimeError(
+                f"Processing Set child {child_name!r} has no field_name coordinate."
+            )
+        field_names.update(str(value) for value in np.unique(child_xdt.field_name))
+
+    if len(field_names) != 1:
+        raise RuntimeError(
+            "The off-axis single-field test requires exactly one field after "
+            f"conversion; found {sorted(field_names)}."
+        )
+    return field_names.pop()
 
 
 def export_products(result: dict, destination: Path) -> None:
@@ -156,9 +153,15 @@ def run_case(
     ms_path = args.data_dir / config["ms"]
     ps_path = args.work_dir / f"{case_name}.ps.zarr"
     convert_ms(ms_path, ps_path, args.overwrite_conversion)
+    selected_field_name = config["field_name"]
+    if config.get("require_single_field", False):
+        selected_field_name = require_one_processing_set_field(ps_path)
     phase_direction, frequencies = phase_direction_from_ps(ps_path)
     if config["phasecenter"] is not None:
-        phase_direction = parse_j2000_phasecenter(config["phasecenter"])
+        raise NotImplementedError(
+            "The current harness cases derive their image center from the "
+            "Measurement Set; explicit phase-center shifts require a separate test."
+        )
 
     suffix = weighting_suffix(weighting_name)
     clean_suffix = cleaning_suffix(args.clean)
@@ -218,7 +221,7 @@ def run_case(
         pbcor=False,
         pblimit=config["pblimit"],
         specmode=mode,
-        field_name=config["field_name"],
+        field_name=selected_field_name,
         # XRADIO represents the simulator metadata differently in these two
         # regression datasets, so select the intent recorded for this case.
         scan_intents=config["scan_intents"],

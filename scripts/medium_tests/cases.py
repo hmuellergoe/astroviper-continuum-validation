@@ -20,19 +20,23 @@ CASES = {
         ),
     },
     "off_axis": {
-        "ms": "refim_oneshiftpoint.mosaic.ms",
+        "ms": "refim_offaxis_point.ms",
         "field": "0",
-        "field_name": "fake0",
-        "scan_intents": ["OBSERVE_TARGET.ON_SOURCE"],
-        "imsize": 512,
+        "field_name": "fake",
+        "require_single_field": True,
+        "scan_intents": ["None"],
+        "imsize": 200,
         "cell_arcsec": 10.0,
-        "phasecenter": "J2000 19h59m28.523 +40d54m01.152",
+        "phasecenter": None,
         "reffreq_hz": 1.5e9,
-        "nchan_mvc": 3,
+        "nchan_mvc": 20,
         "pblimit": 0.1,
+        "source_flux_jy": 1.0,
+        "source_offset_pixels": 60.0,
         "description": (
-            "Single selected field containing an off-axis point source; uses "
-            "the standard gridder to exercise the MVC primary-beam convention."
+            "One-Jy flat-spectrum point source 600 arcsec north of a shared "
+            "single-field pointing/image center; exercises MVC primary-beam "
+            "attenuation without mosaic or visibility phase-center shifting."
         ),
     },
 }
