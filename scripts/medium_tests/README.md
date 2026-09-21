@@ -183,3 +183,10 @@ The Briggs local/global phase-center matrix has also been executed for both MFS
 and MVC. All four runs complete. For global Briggs (`robust=0.5`), every MFS and
 MVC residual and PSF Taylor product passes. MVC PB also passes. MFS PB retains
 the same independent effective-PB discrepancy seen with natural weighting.
+
+## Flat-spectrum single-term Högbom reconstruction
+
+See [FLAT_POINT_RECONSTRUCTION.md](FLAT_POINT_RECONSTRUCTION.md) for the added
+phase-centre one-Jy fixture, matched CASA/AstroVIPER dirty/update/clean stages,
+commands, acceptance checks and limitations. This is distinct from the existing
+unmatched two-term CLEAN smoke check.
