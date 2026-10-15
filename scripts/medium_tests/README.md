@@ -45,10 +45,9 @@ $CASA_PYTHON scripts/medium_tests/prepare_off_axis_point.py --overwrite
 ## Why the minor loop is thresholded off
 
 CASA uses the real coupled MT-MFS minor loop. RADPS currently adapts Taylor term
-zero to a cube Högbom minor loop. CASA uses `niter=0`. The current RADPS driver
-still dispatches its minor wrapper for `niter=0`, so the RADPS harness uses one
-allowed iteration with threshold `1e30`; the model remains unchanged. The
-harness compares these major-cycle products:
+zero to a cube Högbom minor loop. CASA `niter=0` maps directly to AstroVIPER
+`max_iter=0`, so neither implementation updates the model. The harness compares
+these major-cycle products:
 
 - residual Taylor terms 0 and 1;
 - PSF/Hessian Taylor orders 0, 1, and 2;

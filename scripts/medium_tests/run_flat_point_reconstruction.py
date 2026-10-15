@@ -1,11 +1,17 @@
 """Matched nterms=1, natural-weight MFS/Hogbom example; run engines separately."""
 
-from pathlib import Path
 import argparse
 import json
+import sys
+from pathlib import Path
+
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from iteration_limits import casa_to_astroviper_iteration_limit  # noqa: E402
+
 STAGES = {"dirty": 0, "update": 5, "clean": 100}
 
 
@@ -121,14 +127,15 @@ def main():
                     casa_weighting_implementation=True,
                 ),
                 iteration_control_params=dict(
-                    niter=max(1, niter),
-                    nmajor=20 if niter else 0,
+                    max_iter=casa_to_astroviper_iteration_limit(niter),
+                    max_cycles=20 if niter else 0,
                     threshold=0.01 if niter else 1.0e30,
                     gain=0.1,
-                    cyclefactor=1.0,
-                    cycleniter=5,
-                    minpsffraction=0.05,
-                    maxpsffraction=0.8,
+                    psf_sidelobe_factor=1.0,
+                    max_iter_per_cycle=casa_to_astroviper_iteration_limit(5),
+                    min_psf_fraction=0.05,
+                    max_psf_fraction=0.8,
+                    threshold_sigma=0.0,
                 ),
                 gridder="prolate_spheroidal",
                 deconvolver="hogbom",

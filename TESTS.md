@@ -95,6 +95,14 @@ Coverage includes:
 - a strictly single-field off-axis MVC regression that checks the 60-pixel
   source displacement, central PB peak, PB attenuation at the source, and the
   apparent source response without invoking mosaicing or phase-center shifts.
+- a fixed-iteration flat-point regression that translates CASA's inclusive
+  positive `niter`/`cycleniter` limits to AstroVIPER's iteration budgets and
+  compares the resulting model and residual after the same number of component
+  updates.
+
+The runners preserve zero and negative/unlimited iteration limits, but add one
+to positive CASA `niter` and `cycleniter` values: CASA applies component update
+zero through update *N*, whereas AstroVIPER executes exactly *N* updates.
 
 `scripts/medium_tests/cube_backward_compatibility/` uses the five-channel TW Hydra
 processing set for several distributed-application checks. The cube test reopens a
@@ -214,6 +222,9 @@ Last verified on 2026-10-15 against AstroVIPER commit `1f5807e` on the
 - medium phase-center matrix: all six MFS/MVC × natural-local/Briggs-local/
   Briggs-global runs completed, their persisted products matched the in-memory
   results, and every enforced CASA comparison passed;
+- medium fixed-iteration flat-point comparison: all 30 checks pass after the
+  CASA-to-AstroVIPER iteration-limit translation; model and residual maximum
+  absolute differences are `8.94e-08` and `3.34e-06` Jy, respectively;
 - TW Hydra distributed continuum regression: MFS natural-local, MVC
   natural-local, and MFS Briggs-global passed with equivalent persisted results
   for one and five frequency partitions;
@@ -224,9 +235,9 @@ Last verified on 2026-10-15 against AstroVIPER commit `1f5807e` on the
 - big 2017.1.00661.S and 2023.1.01342.S reconstructions: both Hogbom and MT-MFS
   (`nterms=2`) produce finite products, giving four completed runs and six CASA
   comparisons per run. Hogbom residual/model correlations are
-  `0.999976`/`0.999999` for 2017 and `0.992303`/`0.979497` for 2023; MT-MFS gives
-  `0.836068`/`0.980762` and `0.994437`/`0.979073`, respectively. Current runtimes
-  are `6.910 s`/`6.725 s` for 2017 and `55.872 s`/`260.352 s` for 2023
+  `0.999976`/`0.999999` for 2017 and `0.992341`/`0.978650` for 2023; MT-MFS gives
+  `0.836068`/`0.980762` and `0.986959`/`0.976573`, respectively. Current runtimes
+  are `6.965 s`/`7.038 s` for 2017 and `44.933 s`/`263.099 s` for 2023
   (Hogbom/MT-MFS).
 
 The audit fixed two defects: PB correction now emits only restored Taylor term

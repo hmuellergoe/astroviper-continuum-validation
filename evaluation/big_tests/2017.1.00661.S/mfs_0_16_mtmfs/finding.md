@@ -7,12 +7,12 @@ All recorded AstroViper products contain finite pixels.
 
 ## Run configuration
 
-- AstroViper elapsed time: `6.725 s`
+- AstroViper elapsed time: `7.038 s`
 - Deconvolver: `mtmfs`
 - Taylor terms: `2`
-- Requested iterations: `99999`
+- Requested iterations: `100000`
 - Major-cycle limit: `20`
-- Minor-cycle limit: `50`
+- Minor-cycle limit: `-1`
 - Stopping threshold: `0.129 Jy`
 
 ## CASA comparison

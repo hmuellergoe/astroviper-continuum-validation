@@ -23,6 +23,11 @@ major cycles with a 0.01 Jy threshold. Each stage starts independently from a
 zero model. Native restoration and PB correction are enabled. Common-beam
 restoration is a subsequent extension, not implemented here.
 
+CASA counts a positive iteration limit inclusively, whereas AstroVIPER's budget
+is the number of updates to execute. The runner therefore translates positive
+CASA `niter` and `cycleniter` values by adding one; zero and negative/unlimited
+limits remain unchanged.
+
 ## Run
 
 From the repository root, set `PY` to the Python executable in the viper
@@ -69,3 +74,10 @@ Returned iteration counts differ and require interpretation. AstroVIPER also rep
 ## Follow-up with CASA counting restored
 
 At the user's request, a local AstroVIPER patch on 795b8ba restores the positive inclusive Högbom iteration limit with a capped reported counter. Both kernels were rebuilt in viper; 59 unit tests pass. Rerunning the three AstroVIPER stages against the same CASA references now passes all 30 example checks, including the previously failing fixed-update comparisons. See results/flat_point_casa_counting/REPORT.md and astroviper.patch. The initial failure above remains a historical result of the earlier exclusive-limit build. Other controller, mask-summary and coverage caveats remain.
+
+The current portable harness does not require that historical AstroVIPER patch.
+It translates each positive CASA `niter` and `cycleniter` limit to the equivalent
+AstroVIPER budget by adding one, while preserving zero and negative/unlimited
+values. Against the current checkout this again passes all 30 checks; the
+fixed-update model and residual maximum absolute differences are `8.94e-08`
+and `3.34e-06` Jy, respectively.

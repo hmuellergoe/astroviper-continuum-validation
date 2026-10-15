@@ -7,23 +7,23 @@ All recorded AstroViper products contain finite pixels.
 
 ## Run configuration
 
-- AstroViper elapsed time: `55.872 s`
+- AstroViper elapsed time: `44.933 s`
 - Deconvolver: `hogbom`
 - Taylor terms: `2`
-- Requested iterations: `399999`
+- Requested iterations: `400000`
 - Major-cycle limit: `20`
-- Minor-cycle limit: `50`
+- Minor-cycle limit: `-1`
 - Stopping threshold: `6.16e-05 Jy`
 
 ## CASA comparison
 
 | Product | Status | Correlation | Normalized RMSE | Flux ratio |
 |---|---|---:|---:|---:|
-| restored | compared | 0.998744 | 0.068857 | 1.05831 |
-| restored_pbcor | compared | 0.995413 | 0.101541 | 1.06258 |
-| residual | compared | 0.992303 | 0.124843 | 1.13242 |
+| restored | compared | 0.998746 | 0.0688438 | 1.05852 |
+| restored_pbcor | compared | 0.99542 | 0.101445 | 1.06246 |
+| residual | compared | 0.992341 | 0.124517 | 1.13245 |
 | psf | compared | 0.997585 | 0.0808893 | 1.62827 |
 | primary_beam | compared | 1 | 0.000185509 | 1.00015 |
-| model | compared | 0.979497 | 0.205531 | 1.01516 |
+| model | compared | 0.97865 | 0.2096 | 1.01536 |
 
 These are comparison measurements, not universal pass/fail thresholds. AstroViper used the configured `hogbom` deconvolver without CASA auto-multithresh.

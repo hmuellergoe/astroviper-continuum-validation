@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from continuum_common import (
     BIG_VALIDATION_PROJECTS,
@@ -21,6 +22,7 @@ from continuum_common import (
     parse_jy,
     write_manifest,
 )
+from iteration_limits import casa_to_astroviper_iteration_limit
 
 
 def _convert_ms(selected_ms: Path, ps_store: Path, overwrite: bool) -> None:
@@ -122,13 +124,15 @@ def run_project(
             int(config.get("niter", 0)) if niter_override is None else niter_override
         )
         iteration_control_params = {
-            "max_iter": effective_niter,
+            "max_iter": casa_to_astroviper_iteration_limit(effective_niter),
             "max_cycles": nmajor,
             "threshold_sigma": float(config.get("nsigma", 0.0)),
             "threshold": parse_jy(config.get("threshold", 0.0)),
             "gain": float(config.get("gain", 0.1)),
             "psf_sidelobe_factor": float(config.get("cyclefactor", 1.0)),
-            "max_iter_per_cycle": int(config.get("cycleniter", 50)),
+            "max_iter_per_cycle": casa_to_astroviper_iteration_limit(
+                int(config.get("cycleniter", -1))
+            ),
             "min_psf_fraction": float(config.get("minpsffraction", 0.05)),
             "max_psf_fraction": float(config.get("maxpsffraction", 0.8)),
         }

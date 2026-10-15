@@ -18,6 +18,7 @@ import numpy as np
 SCRIPT_ROOT = Path(__file__).resolve().parent
 HARNESS_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SCRIPT_ROOT))
+sys.path.insert(0, str(HARNESS_ROOT / "scripts"))
 from cases import (  # noqa: E402
     CASES,
     CLEANING_CASE,
@@ -27,6 +28,7 @@ from cases import (  # noqa: E402
     selected_weightings,
     weighting_suffix,
 )
+from iteration_limits import casa_to_astroviper_iteration_limit  # noqa: E402
 
 
 def convert_ms(ms_path: Path, ps_path: Path, overwrite: bool) -> None:
@@ -193,16 +195,15 @@ def run_case(
     if weighting_config["robust"] is not None:
         imaging_weights_params["robust"] = weighting_config["robust"]
     iteration_control_params = {
-        # The current continuum driver dispatches the minor-loop wrapper even
-        # for niter=0, while the deconvolver rejects zero. One permitted
-        # iteration plus an unreachable threshold yields an unchanged model
-        # and therefore still isolates the dirty major-cycle products.
-        "max_iter": CLEANING_CASE["niter"] if args.clean else 1,
+        "max_iter": casa_to_astroviper_iteration_limit(
+            CLEANING_CASE["niter"] if args.clean else 0
+        ),
         "max_cycles": CLEANING_CASE["nmajor"] if args.clean else 0,
         "threshold": CLEANING_CASE["threshold_jy"] if args.clean else 1.0e30,
         "gain": 0.1,
         "psf_sidelobe_factor": 1.0,
-        "max_iter_per_cycle": 50 if args.clean else 1,
+        # CASA leaves cycleniter at its unlimited default in this comparison.
+        "max_iter_per_cycle": casa_to_astroviper_iteration_limit(-1),
         "min_psf_fraction": 0.05,
         "max_psf_fraction": 0.8,
         "threshold_sigma": 0.0,

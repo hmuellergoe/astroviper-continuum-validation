@@ -35,6 +35,10 @@ Run the commands below from the repository root after defining
    "$VALIDATION_PYTHON" scripts/big_tests/run_astroviper.py all --cores 4 --memory-limit 8GB
    ```
 
+   Positive CASA `niter` and `cycleniter` limits are inclusive and are
+   translated to AstroVIPER budgets by adding one. Zero and negative/unlimited
+   limits are preserved.
+
    Four dataset-specific entry points are also provided. For example:
 
    ```bash

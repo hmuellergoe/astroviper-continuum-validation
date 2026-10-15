@@ -7,6 +7,15 @@ from continuum_common import (
     astroviper_variants,
     resolve_available_config,
 )
+from scripts.iteration_limits import casa_to_astroviper_iteration_limit
+
+
+def test_casa_iteration_limits_translate_to_astroviper_budgets():
+    """Positive CASA limits are inclusive; zero and unlimited stay unchanged."""
+    assert casa_to_astroviper_iteration_limit(0) == 0
+    assert casa_to_astroviper_iteration_limit(5) == 6
+    assert casa_to_astroviper_iteration_limit(100) == 101
+    assert casa_to_astroviper_iteration_limit(-1) == -1
 
 
 def test_targets_fallback_uses_calibrated_column(tmp_path: Path):
