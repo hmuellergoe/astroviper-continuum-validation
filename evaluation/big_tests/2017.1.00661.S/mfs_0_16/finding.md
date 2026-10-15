@@ -7,7 +7,7 @@ All recorded AstroViper products contain finite pixels.
 
 ## Run configuration
 
-- AstroViper elapsed time: `9.660 s`
+- AstroViper elapsed time: `6.664 s`
 - Requested iterations: `99999`
 - Major-cycle limit: `20`
 - Minor-cycle limit: `50`
@@ -17,11 +17,11 @@ All recorded AstroViper products contain finite pixels.
 
 | Product | Status | Correlation | Normalized RMSE | Flux ratio |
 |---|---|---:|---:|---:|
-| restored | compared | 0.981196 | 0.199128 | 1.00092 |
-| restored_pbcor | compared | 0.975364 | 0.233124 | 1.02002 |
-| residual | compared | 0.999978 | 0.00670658 | 0.99452 |
+| restored | compared | 0.999999 | 0.00149312 | 1.00113 |
+| restored_pbcor | compared | 0.999992 | 0.00422538 | 0.99513 |
+| residual | compared | 0.999976 | 0.0069761 | 0.992245 |
 | psf | compared | 0.999958 | 0.00914588 | 1.00261 |
-| primary_beam | compared | 0.998631 | 0.163872 | 0.824848 |
-| model | compared | 0.999999 | 0.00166801 | 1.00033 |
+| primary_beam | compared | 1 | 0.000232843 | 1.0002 |
+| model | compared | 0.999999 | 0.00170599 | 1.00034 |
 
-These are comparison measurements, not universal pass/fail thresholds. CASA uses its configured deconvolver and masking heuristics, while the AstroViper harness currently uses Högbom without CASA auto-multithresh.
+These are comparison measurements, not universal pass/fail thresholds. AstroViper used the configured `hogbom` deconvolver without CASA auto-multithresh.

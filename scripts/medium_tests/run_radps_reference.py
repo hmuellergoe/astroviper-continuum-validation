@@ -197,15 +197,15 @@ def run_case(
         # for niter=0, while the deconvolver rejects zero. One permitted
         # iteration plus an unreachable threshold yields an unchanged model
         # and therefore still isolates the dirty major-cycle products.
-        "niter": CLEANING_CASE["niter"] if args.clean else 1,
-        "nmajor": CLEANING_CASE["nmajor"] if args.clean else 0,
+        "max_iter": CLEANING_CASE["niter"] if args.clean else 1,
+        "max_cycles": CLEANING_CASE["nmajor"] if args.clean else 0,
         "threshold": CLEANING_CASE["threshold_jy"] if args.clean else 1.0e30,
         "gain": 0.1,
-        "cyclefactor": 1.0,
-        "cycleniter": 50 if args.clean else 1,
-        "minpsffraction": 0.05,
-        "maxpsffraction": 0.8,
-        "nsigma": 0.0,
+        "psf_sidelobe_factor": 1.0,
+        "max_iter_per_cycle": 50 if args.clean else 1,
+        "min_psf_fraction": 0.05,
+        "max_psf_fraction": 0.8,
+        "threshold_sigma": 0.0,
     }
 
     print(f"Running RADPS {case_name}/{mode}/{weighting_name}: {config['description']}")

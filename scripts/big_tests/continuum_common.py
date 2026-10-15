@@ -19,6 +19,13 @@ PROJECTS = (
     "2023.1.01342.S",
 )
 
+BIG_VALIDATION_PROJECTS = (
+    "2017.1.00661.S",
+    "2023.1.01342.S",
+)
+
+ASTROVIPER_DECONVOLVERS = ("hogbom", "mtmfs")
+
 
 def _balanced_tclean_calls(source: str) -> list[str]:
     """Extract complete ``tclean(...)`` expressions from a CASA command file."""
@@ -87,6 +94,19 @@ def project_variants(project: str) -> list[tuple[str, dict[str, Any]]]:
         (variant_name(index, config), config)
         for index, config in enumerate(continuum_configs(project))
     ]
+
+
+def astroviper_variants(
+    project: str,
+) -> list[tuple[str, str, dict[str, Any]]]:
+    """Expand each archived configuration into Hogbom and two-term MT-MFS runs."""
+    variants = []
+    for variant, source_config in project_variants(project):
+        for deconvolver in ASTROVIPER_DECONVOLVERS:
+            config = dict(source_config)
+            config.update(deconvolver=deconvolver, nterms=2)
+            variants.append((variant, deconvolver, config))
+    return variants
 
 
 def as_list(value: Any, length: int) -> list[Any]:

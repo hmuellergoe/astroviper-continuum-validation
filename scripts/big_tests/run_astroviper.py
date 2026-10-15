@@ -13,11 +13,12 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from continuum_common import (
+    BIG_VALIDATION_PROJECTS,
     PROJECTS,
     RESULTS_ROOT,
+    astroviper_variants,
     parse_cell_radians,
     parse_jy,
-    project_variants,
     write_manifest,
 )
 
@@ -65,24 +66,32 @@ def run_project(
     from toolviper.dask.client import local_client
     from xradio.measurement_set import open_processing_set
 
-    for variant, config in project_variants(project):
-        result_dir = RESULTS_ROOT / project / variant / "astroviper"
+    converted_stores = set()
+    for variant, deconvolver, config in astroviper_variants(project):
+        run_dir = RESULTS_ROOT / project / variant
+        astroviper_dir = run_dir / "astroviper"
+        result_dir = astroviper_dir / deconvolver
         result_dir.mkdir(parents=True, exist_ok=True)
-        selected_ms = RESULTS_ROOT / project / variant / "prepared" / "selected.ms"
+        selected_ms = run_dir / "prepared" / "selected.ms"
         if not selected_ms.exists():
             raise FileNotFoundError(
                 f"{selected_ms} is missing; run prepare_selected_ms.py first"
             )
-        ps_store = result_dir / "selected.ps.zarr"
+        ps_store = astroviper_dir / "selected.ps.zarr"
         image_store = result_dir / "continuum.img.zarr"
         marker = result_dir / "complete.json"
         if marker.exists() and image_store.exists() and not overwrite:
-            print(f"Skipping completed AstroViper result {project}/{variant}")
+            print(
+                "Skipping completed AstroViper result "
+                f"{project}/{variant}/{deconvolver}"
+            )
             continue
         if overwrite and marker.exists():
             marker.unlink()
 
-        _convert_ms(selected_ms, ps_store, overwrite)
+        if ps_store not in converted_stores:
+            _convert_ms(selected_ms, ps_store, overwrite)
+            converted_stores.add(ps_store)
         ps_xdt = open_processing_set(str(ps_store))
         combined_field = ps_xdt.xr_ps.get_combined_field_and_source_xds()
         center_field = combined_field.attrs["center_field_name"]
@@ -113,17 +122,21 @@ def run_project(
             int(config.get("niter", 0)) if niter_override is None else niter_override
         )
         iteration_control_params = {
-            "niter": effective_niter,
-            "nmajor": nmajor,
+            "max_iter": effective_niter,
+            "max_cycles": nmajor,
+            "threshold_sigma": float(config.get("nsigma", 0.0)),
             "threshold": parse_jy(config.get("threshold", 0.0)),
             "gain": float(config.get("gain", 0.1)),
-            "cyclefactor": float(config.get("cyclefactor", 1.0)),
-            "cycleniter": int(config.get("cycleniter", 50)),
-            "minpsffraction": float(config.get("minpsffraction", 0.05)),
-            "maxpsffraction": float(config.get("maxpsffraction", 0.8)),
+            "psf_sidelobe_factor": float(config.get("cyclefactor", 1.0)),
+            "max_iter_per_cycle": int(config.get("cycleniter", 50)),
+            "min_psf_fraction": float(config.get("minpsffraction", 0.05)),
+            "max_psf_fraction": float(config.get("maxpsffraction", 0.8)),
         }
 
-        print(f"Running AstroViper continuum imaging for {project}/{variant}")
+        print(
+            "Running AstroViper continuum imaging for "
+            f"{project}/{variant}/{deconvolver}"
+        )
         started = time.time()
         client = local_client(cores=cores, memory_limit=memory_limit)
         in_memory_store = result_dir / "continuum.in_memory.img.zarr"
@@ -136,7 +149,7 @@ def run_project(
                 imaging_weights_params=imaging_weights_params,
                 iteration_control_params=iteration_control_params,
                 gridder="prolate_spheroidal",
-                deconvolver="hogbom",
+                deconvolver=deconvolver,
                 pbcor=bool(config.get("pbcor", False)),
                 pblimit=float(config.get("pblimit", 0.2)),
                 specmode="mfs",
@@ -196,11 +209,13 @@ def run_project(
                 "image_params": image_params,
                 "imaging_weights_params": imaging_weights_params,
                 "iteration_control_params": iteration_control_params,
+                "deconvolver": deconvolver,
+                "nterms": image_params["nterms"],
                 "n_chunks": n_chunks,
                 "elapsed_seconds": time.time() - started,
                 "return_keys": sorted(result),
                 "limitations": [
-                    "AstroViper currently uses Hogbom without CASA auto-multithresh.",
+                    "AstroViper runs the configured deconvolver without CASA auto-multithresh.",
                     "The selected MS is materialized before XRADIO conversion.",
                 ],
             },
@@ -220,7 +235,7 @@ def main(default_project: str | None = None) -> None:
     parser.add_argument("--memory-limit", default="8GB")
     args = parser.parse_args()
     selected = default_project or args.project
-    projects = PROJECTS if selected == "all" else (selected,)
+    projects = BIG_VALIDATION_PROJECTS if selected == "all" else (selected,)
     for project in projects:
         run_project(
             project,

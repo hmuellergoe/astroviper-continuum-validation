@@ -28,9 +28,10 @@ import matplotlib.pyplot as plt  # noqa: E402
 sys.path.insert(0, str(ROOT / "scripts" / "big_tests"))
 
 from continuum_common import (  # noqa: E402
+    BIG_VALIDATION_PROJECTS,
     PROJECTS,
     RESULTS_ROOT,
-    project_variants,
+    astroviper_variants,
     write_manifest,
 )
 
@@ -167,15 +168,22 @@ def _write_finding(
     project: str,
     variant: str,
     rows: list[dict[str, Any]],
-    run_dir: Path,
+    manifest_path: Path,
 ) -> None:
     """Write a per-run finding derived only from current metrics and metadata."""
-    manifest_path = run_dir / "astroviper" / "complete.json"
     manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
     compared = [row for row in rows if row["validation_status"] == "compared"]
     finite_counts = manifest.get("in_memory_finite_counts", {})
     elapsed = manifest.get("elapsed_seconds")
     iteration = manifest.get("iteration_control_params", {})
+    deconvolver = manifest.get(
+        "deconvolver",
+        manifest.get("source_tclean_parameters", {}).get("deconvolver", "unknown"),
+    )
+    nterms = manifest.get(
+        "nterms",
+        manifest.get("image_params", {}).get("nterms", "unknown"),
+    )
 
     lines = [
         f"# {project} {variant} continuum validation",
@@ -200,9 +208,14 @@ def _write_finding(
                 "## Run configuration",
                 "",
                 f"- AstroViper elapsed time: `{float(elapsed):.3f} s`",
-                f"- Requested iterations: `{iteration.get('niter', 'unknown')}`",
-                f"- Major-cycle limit: `{iteration.get('nmajor', 'unknown')}`",
-                f"- Minor-cycle limit: `{iteration.get('cycleniter', 'unknown')}`",
+                f"- Deconvolver: `{deconvolver}`",
+                f"- Taylor terms: `{nterms}`",
+                "- Requested iterations: "
+                f"`{iteration.get('max_iter', iteration.get('niter', 'unknown'))}`",
+                "- Major-cycle limit: "
+                f"`{iteration.get('max_cycles', iteration.get('nmajor', 'unknown'))}`",
+                "- Minor-cycle limit: "
+                f"`{iteration.get('max_iter_per_cycle', iteration.get('cycleniter', 'unknown'))}`",
                 f"- Stopping threshold: `{iteration.get('threshold', 'unknown')} Jy`",
             ]
         )
@@ -226,22 +239,26 @@ def _write_finding(
         [
             "",
             "These are comparison measurements, not universal pass/fail thresholds. "
-            "CASA uses its configured deconvolver and masking heuristics, while the "
-            "AstroViper harness currently uses H\u00f6gbom without CASA auto-multithresh.",
+            f"AstroViper used the configured `{deconvolver}` deconvolver without "
+            "CASA auto-multithresh.",
         ]
     )
     (output_dir / "finding.md").write_text("\n".join(lines) + "\n")
 
 
-def evaluate_variant(project: str, variant: str) -> list[dict[str, Any]]:
+def evaluate_variant(
+    project: str, variant: str, deconvolver: str
+) -> list[dict[str, Any]]:
     """Evaluate every corresponding product available for one reconstruction."""
     run_dir = RESULTS_ROOT / project / variant
     casa_dir = run_dir / "casa"
-    viper_store = run_dir / "astroviper" / "continuum.img.zarr"
+    viper_dir = run_dir / "astroviper" / deconvolver
+    viper_store = viper_dir / "continuum.img.zarr"
     if not viper_store.exists():
         raise FileNotFoundError(viper_store)
     image = xr.open_zarr(viper_store)
-    output_dir = EVALUATION_ROOT / project / variant
+    output_variant = f"{variant}_{deconvolver}"
+    output_dir = EVALUATION_ROOT / project / output_variant
     output_dir.mkdir(parents=True, exist_ok=True)
 
     rows = []
@@ -255,7 +272,7 @@ def evaluate_variant(project: str, variant: str) -> list[dict[str, Any]]:
             rows.append(
                 {
                     "project": project,
-                    "variant": variant,
+                    "variant": output_variant,
                     "product": product,
                     "validation_status": "no_finite_astroviper_pixels",
                     "casa_fits": str(fits_path),
@@ -284,7 +301,7 @@ def evaluate_variant(project: str, variant: str) -> list[dict[str, Any]]:
         metrics = _metrics(reference, candidate)
         row = {
             "project": project,
-            "variant": variant,
+            "variant": output_variant,
             "product": product,
             "casa_fits": str(fits_path),
             "astroviper_store": str(viper_store),
@@ -297,19 +314,27 @@ def evaluate_variant(project: str, variant: str) -> list[dict[str, Any]]:
         _plot(
             reference,
             candidate,
-            f"{project} {variant}: {product}",
+            f"{project} {output_variant}: {product}",
             output_dir / f"{product}.png",
         )
 
     write_manifest(output_dir / "metrics.json", {"comparisons": rows})
-    _write_finding(output_dir, project, variant, rows, run_dir)
+    _write_finding(
+        output_dir,
+        project,
+        output_variant,
+        rows,
+        viper_dir / "complete.json",
+    )
     return rows
 
 
 def _load_all_metrics() -> list[dict[str, Any]]:
     """Load every per-variant report so a selected run keeps the global summary."""
     rows = []
-    for metrics_path in sorted(EVALUATION_ROOT.glob("*/*/metrics.json")):
+    for metrics_path in sorted(EVALUATION_ROOT.glob("*/*_hogbom/metrics.json")):
+        rows.extend(json.loads(metrics_path.read_text()).get("comparisons", []))
+    for metrics_path in sorted(EVALUATION_ROOT.glob("*/*_mtmfs/metrics.json")):
         rows.extend(json.loads(metrics_path.read_text()).get("comparisons", []))
     return rows
 
@@ -320,7 +345,9 @@ def write_reports(rows: list[dict[str, Any]]) -> None:
     output_md = EVALUATION_ROOT / "summary.md"
     if rows:
         with output_csv.open("w", newline="") as stream:
-            writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+            writer = csv.DictWriter(
+                stream, fieldnames=list(rows[0]), lineterminator="\n"
+            )
             writer.writeheader()
             writer.writerows(rows)
     lines = [
@@ -344,14 +371,16 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("project", choices=(*PROJECTS, "all"), default="all", nargs="?")
     args = parser.parse_args()
-    projects = PROJECTS if args.project == "all" else (args.project,)
+    projects = BIG_VALIDATION_PROJECTS if args.project == "all" else (args.project,)
     rows = []
     for project in projects:
-        for variant, _ in project_variants(project):
+        for variant, deconvolver, _ in astroviper_variants(project):
             try:
-                rows.extend(evaluate_variant(project, variant))
+                rows.extend(evaluate_variant(project, variant, deconvolver))
             except FileNotFoundError as error:
-                print(f"Skipping incomplete {project}/{variant}: {error}")
+                print(
+                    f"Skipping incomplete {project}/{variant}/{deconvolver}: {error}"
+                )
     write_reports(_load_all_metrics())
 
 

@@ -46,20 +46,20 @@ IMAGING_WEIGHTS_PARAMS = {
 }
 
 DIRTY_ITERATION_CONTROL = {
-    "niter": 0,
-    "nmajor": 0,
+    "max_iter": 0,
+    "max_cycles": 0,
+    "threshold_sigma": 0.0,
     "threshold": 0.0,
     "gain": 0.1,
-    "cyclefactor": 1.5,
-    "cycleniter": -1,
-    "minpsffraction": 0.05,
-    "maxpsffraction": 0.8,
+    "psf_sidelobe_factor": 1.5,
+    "max_iter_per_cycle": -1,
+    "min_psf_fraction": 0.05,
+    "max_psf_fraction": 0.8,
 }
 
 IMAGE_VARIABLES = (
     "SKY_RESIDUAL",
     "POINT_SPREAD_FUNCTION",
-    "PRIMARY_BEAM",
 )
 
 CONTINUUM_VARIABLES = (
@@ -131,6 +131,30 @@ def _assert_cube_product_unchanged(actual, reference, variable):
             )
 
 
+def _assert_primary_beam_matches_power_reference(actual):
+    """Compare the cube PB with the post-40d773d CASA power-pattern baseline."""
+    reference_path = Path(__file__).with_name("twhya_power_primary_beam.npz")
+    with np.load(reference_path) as reference_file:
+        reference = reference_file["PRIMARY_BEAM"]
+
+    # The beam is polarization independent, so the compact reference retains
+    # one polarization plane and checks every polarization in the output.
+    assert reference.shape == (
+        actual.sizes["time"],
+        actual.sizes["frequency"],
+        1,
+        actual.sizes["l"],
+        actual.sizes["m"],
+    )
+    for polarization in range(actual.sizes["polarization"]):
+        np.testing.assert_allclose(
+            actual.PRIMARY_BEAM.isel(polarization=polarization).values,
+            reference[:, :, 0],
+            rtol=RELATIVE_TOLERANCE,
+            atol=0.0,
+        )
+
+
 def test_tw_hydra_dirty_cube_is_backward_compatible(tmp_path):
     """The public cube application must reproduce the persisted TW Hydra baseline."""
     processing_set = open_processing_set(str(PS_STORE))
@@ -156,9 +180,9 @@ def test_tw_hydra_dirty_cube_is_backward_compatible(tmp_path):
             single_precision_image=False,
             thread_info=None,
             processing_function_threads=1,
-            n_chunks=5,
+            n_mapping_parallelism={"frequency": 5},
             overwrite=True,
-            disk_chunk_sizes={"frequency": 2},
+            image_chunking={"frequency": 1},
             vizualize_graph=False,
         )
 
@@ -180,6 +204,8 @@ def test_tw_hydra_dirty_cube_is_backward_compatible(tmp_path):
 
     for variable in IMAGE_VARIABLES:
         _assert_cube_product_unchanged(actual, reference, variable)
+
+    _assert_primary_beam_matches_power_reference(actual)
 
     np.testing.assert_allclose(
         actual.BEAM_FIT_PARAMS_POINT_SPREAD_FUNCTION.values,
@@ -206,8 +232,8 @@ def _run_tw_hydra_continuum(
         iteration_control_params = {
             **DIRTY_ITERATION_CONTROL,
             # The unreachable threshold keeps this a dirty-image comparison.
-            "niter": 1,
-            "cycleniter": 1,
+            "max_iter": 1,
+            "max_iter_per_cycle": 1,
             "threshold": 1.0e30,
         }
 
@@ -305,14 +331,15 @@ def test_tw_hydra_visibility_memory_modes_are_equivalent(tmp_path, specmode):
     """All three visibility policies preserve real multi-cycle continuum CLEAN."""
     processing_set = open_processing_set(str(PS_STORE))
     iteration_control_params = {
-        "niter": 20,
-        "nmajor": 2,
+        "max_iter": 20,
+        "max_cycles": 2,
+        "threshold_sigma": 0.0,
         "threshold": 0.001,
         "gain": 0.1,
-        "cyclefactor": 1.5,
-        "cycleniter": 5,
-        "minpsffraction": 0.05,
-        "maxpsffraction": 0.8,
+        "psf_sidelobe_factor": 1.5,
+        "max_iter_per_cycle": 5,
+        "min_psf_fraction": 0.05,
+        "max_psf_fraction": 0.8,
     }
     imaging_weights_params = {
         "weighting": "natural",

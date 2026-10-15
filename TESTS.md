@@ -9,7 +9,7 @@ selection, orchestration, numerical-agreement, or deconvolution issue.
 
 | Tier | Location | Typical cost | Purpose |
 |---|---|---:|---|
-| Light | `scripts/light_tests/` | seconds | Synthetic tests of processing functions, node state, and distributed reducers |
+| Light | `scripts/light_tests/` | seconds to about two minutes | Synthetic harness tests plus a self-contained snapshot of the AstroVIPER continuum unit suite |
 | Medium | `scripts/medium_tests/` | minutes | Targeted CASA comparisons plus TW Hydra distributed continuum and cube regressions |
 | Big | `scripts/big_tests/` | minutes to hours; large storage | Full archived ALMA `tclean` reconstructions and image-level comparisons |
 | Repository | `astroviper/tests/unit/*/imaging/test_continuum.py` plus `test_iteration_control.py` | seconds | CI coverage across processing, node-task, and distributed continuum layers |
@@ -24,6 +24,22 @@ PYTHONPATH=$ASTROVIPER_SOURCE \
 ```
 
 The tests mirror AstroVIPER's application layers.
+
+### Copied AstroVIPER continuum unit suite
+
+`repository_unit_suite/` contains the complete focused continuum unit-suite
+snapshot from AstroVIPER commit `1f5807e`: 16 test modules spanning processing
+functions, node tasks, distributed applications, and iteration control. Its
+local helper and fixture make the copy independently runnable from the harness.
+The fixture prefers `data/medium_tests/cube_backward_compatibility/` and falls
+back to the same public TW Hydra download used upstream when the harness data is
+not installed.
+
+Run the copied suite alone with:
+
+```bash
+$VALIDATION_PYTHON -m pytest -q scripts/light_tests/repository_unit_suite
+```
 
 ### Distributed reduction
 
@@ -145,7 +161,8 @@ requested—the PB-corrected restored image. The evaluator reports finite-pixel
 status, correlation, normalized RMSE, flux ratio, orientation, and diagnostic
 plots. Unlike the medium tier, these runs exercise restoration and the configured
 minor cycle, subject to the documented CASA auto-multithresh versus AstroVIPER
-Hogbom difference.
+unmasked-deconvolution difference. For every selected dataset configuration, the
+runner creates both a Hogbom and a native MT-MFS result with `nterms=2`.
 
 Run from the `continuum` harness root using the shared environment:
 
@@ -181,17 +198,19 @@ $VALIDATION_PYTHON -m pytest -q evaluation/test_evaluate_science_metrics.py
   case and the repository TW Hydra tests validate deconvolution separately.
 - The big tier currently contains archived MFS calls; MVC is covered by the light
   and medium tiers.
-- CASA auto-multithresh and AstroVIPER Hogbom do not implement the same minor-loop
-  masking strategy, so deep-clean image agreement is not expected to be exact.
+- CASA auto-multithresh and AstroVIPER's unmasked Hogbom/MT-MFS runs do not use
+  the same minor-loop masking strategy, so deep-clean image agreement is not
+  expected to be exact.
 - Briggs-local is informational; Briggs-global is the CASA-equivalent continuum
   weighting comparison.
 
 ## Verification status
 
-Last verified on 2026-08-24 against the `RADPS-roadmap-194` working tree:
+Last verified on 2026-10-15 against AstroVIPER commit `1f5807e` on the
+`RADPS-roadmap-194` working tree:
 
-- lightweight suite: 15 passed;
-- focused AstroVIPER continuum unit suite: 187 passed;
+- combined lightweight suite: 719 passed (16 harness-specific tests plus the
+  703-test copied AstroVIPER continuum unit suite);
 - medium phase-center matrix: all six MFS/MVC × natural-local/Briggs-local/
   Briggs-global runs completed, their persisted products matched the in-memory
   results, and every enforced CASA comparison passed;
@@ -199,13 +218,16 @@ Last verified on 2026-08-24 against the `RADPS-roadmap-194` working tree:
   natural-local, and MFS Briggs-global passed with equivalent persisted results
   for one and five frequency partitions;
 - TW Hydra five-channel cube backward-compatibility regression: persisted
-  residual, PSF, and primary-beam image arrays match; the frozen fitted-beam
-  metadata differs by about 4% because the current shared fitter uses the
-  corrected pixel scale, so that metadata baseline must be refreshed;
-- big 2017.1.00661.S and 2023.1.01342.S reconstructions: CASA and AstroVIPER
-  produce finite, nonzero models and all six reconstruction products are
-  compared. The 2017 residual/model correlations are `0.999978`/`0.999999`; the
-  2023 residual/model correlations are `0.991862`/`0.967543`.
+  residual and PSF arrays match the original frozen cube, while the primary
+  beam and fitted-beam metadata match their documented post-correction
+  references; all six TW Hydra cube/continuum cases pass;
+- big 2017.1.00661.S and 2023.1.01342.S reconstructions: both Hogbom and MT-MFS
+  (`nterms=2`) produce finite products, giving four completed runs and six CASA
+  comparisons per run. Hogbom residual/model correlations are
+  `0.999976`/`0.999999` for 2017 and `0.992303`/`0.979497` for 2023; MT-MFS gives
+  `0.836068`/`0.980762` and `0.994437`/`0.979073`, respectively. Current runtimes
+  are `6.910 s`/`6.725 s` for 2017 and `55.872 s`/`260.352 s` for 2023
+  (Hogbom/MT-MFS).
 
 The audit fixed two defects: PB correction now emits only restored Taylor term
 zero, and the worker-side forward FFT no longer calls an interactive

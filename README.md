@@ -21,8 +21,9 @@ image-rendering, and CASA-equivalence programs. See
 [`evaluation/README.md`](evaluation/README.md) for their inputs and commands.
 
 The test-size tiers retain their original meaning: light tests use synthetic
-arrays, medium tests use compact CASA and TW Hydra regression datasets, and big
-tests perform archived ALMA reconstructions.
+arrays and the copied AstroVIPER unit suite, medium tests use compact CASA and
+TW Hydra regression datasets, and big tests perform archived ALMA
+reconstructions.
 
 Create a Python environment containing AstroVIPER and its dependencies, then
 define these shell variables before using the documented commands:

@@ -2,7 +2,11 @@
 
 from pathlib import Path
 
-from continuum_common import resolve_available_config
+from continuum_common import (
+    BIG_VALIDATION_PROJECTS,
+    astroviper_variants,
+    resolve_available_config,
+)
 
 
 def test_targets_fallback_uses_calibrated_column(tmp_path: Path):
@@ -27,3 +31,22 @@ def test_existing_targets_ms_keeps_requested_column(tmp_path: Path):
     assert missing == []
     assert available["vis"] == [str(tmp_path / "observation_targets.ms")]
     assert available["datacolumn"] == "data"
+
+
+def test_selected_big_cases_expand_to_hogbom_and_two_term_mtmfs():
+    """Every archived configuration gets both requested deconvolution runs."""
+    matrix = []
+    for project in BIG_VALIDATION_PROJECTS:
+        variants = astroviper_variants(project)
+        matrix.extend(
+            (project, variant, deconvolver)
+            for variant, deconvolver, _ in variants
+        )
+
+        assert len(variants) == 2
+        assert [deconvolver for _, deconvolver, _ in variants] == [
+            "hogbom",
+            "mtmfs",
+        ]
+        assert all(config["nterms"] == 2 for _, _, config in variants)
+    assert len(matrix) == 4
